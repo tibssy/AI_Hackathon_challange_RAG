@@ -1,23 +1,25 @@
-from flask import Flask, jsonify, request
-
-app = Flask(__name__)
-
-
-@app.route('/health', methods=['GET'])
-def get_health():
-    return jsonify({'message': 'Healthy'})
+import streamlit as st
+from openai_helper import OpenAIChat
 
 
-@app.route('/api/message', methods=['GET'])
-def get_message():
-    return jsonify({'message': 'Hello from the backend!'})
+st.title("💬 Chatbot")
 
+if 'chat' not in st.session_state:
+    st.session_state.chat = OpenAIChat()
+    st.session_state.messages = [{"role": "assistant", "content": "How can I help you?"}]
+    print(f'new instance {st.session_state}')
 
-@app.route('/api/data', methods=['POST'])
-def post_data():
-    data = request.json
-    return jsonify({'received': data})
+for msg in st.session_state.messages:
+    st.chat_message(msg["role"]).write(msg["content"])
+    print(f'messages:\n{st.session_state}')
 
+if prompt := st.chat_input():
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.chat_message("user").write(prompt)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+    response = st.session_state.chat.send_message(prompt)
+    print(response)
+    message = response.get('text')
+
+    st.session_state.messages.append({"role": "assistant", "content": message})
+    st.chat_message("assistant").write(message)
