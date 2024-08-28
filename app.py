@@ -5,7 +5,7 @@ from openai_helper import OpenAIChat
 st.title("💬 Chatbot")
 
 if 'chat' not in st.session_state:
-    st.session_state.chat = OpenAIChat()
+    st.session_state.chat = OpenAIChat(openai_model='gpt-4o-mini')
     st.session_state.messages = [{"role": "assistant", "content": "How can I help you?"}]
     print(f'new instance {st.session_state}')
 
