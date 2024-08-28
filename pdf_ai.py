@@ -23,7 +23,7 @@ st.title("Chat with OpenAI RAG AI solution using PDF")
 
 # loader = PyPDFLoader('./conditions-of-sale-2023-revised-fillable-pdf.pdf')
 # loader = PyPDFLoader('https://www.lawsociety.ie/globalassets/documents/enewsletters/ezine-files/conditionsofsale2019-draft.pdf')
-loader = PyPDFLoader('./merged_files.pdf')
+loader = PyPDFLoader('./public/merged_files.pdf')
 docs = loader.load()
 
 # Step 2: Split the text into smaller chunks
