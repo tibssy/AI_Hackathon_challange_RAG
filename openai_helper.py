@@ -12,11 +12,13 @@ class OpenAIChat:
             self,
             openai_api_key: str | None = None,
             openai_model: str = 'gpt-3.5-turbo',
+            embedding_model: str = 'text-embedding-3-small',
             response_keys: tuple = ('text', 'reference_url', 'image_url')
     ):
         self.openai_api_key = openai_api_key or os.getenv('OPENAI_API_KEY')
         self.openai_model = openai_model
-        self.url = 'https://api.openai.com/v1/chat/completions'
+        self.embedding_model = embedding_model
+        self.url = 'https://api.openai.com'
         self.messages = [
             {
                 'role': 'system',
@@ -24,9 +26,9 @@ class OpenAIChat:
             }
         ]
 
-    def post_request(self, url: str, headers: dict, data: dict) -> dict:
+    def post_request(self, endpoint: str, headers: dict, data: dict) -> dict:
         try:
-            response = requests.post(url, headers=headers, json=data, timeout=20)
+            response = requests.post(f'{self.url}/{endpoint}', headers=headers, json=data, timeout=20)
         except requests.exceptions.RequestException as err:
             return {'status': f'Error: {err}'}
         else:
@@ -43,6 +45,7 @@ class OpenAIChat:
         self.messages.append({'role': role, 'content': content})
 
     def get_response(self) -> dict:
+        end_point = 'v1/chat/completions'
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.openai_api_key}"
@@ -52,7 +55,7 @@ class OpenAIChat:
             'response_format': {'type': 'json_object'},
             'messages': self.messages
         }
-        response = self.post_request(self.url, headers, data)
+        response = self.post_request(end_point, headers, data)
 
         if not (result := response.get('json')):
             return {'text': response.get('status')}
@@ -64,11 +67,29 @@ class OpenAIChat:
         else:
             return {'text': 'No response from OpenAI API'}
 
+    def get_embedding(self, text: str = 'hello') -> list | None:
+        endpoint = 'v1/embeddings'
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.openai_api_key}"
+        }
+        data = {
+            "model": self.embedding_model,
+            "input": text
+        }
+        response = self.post_request(endpoint, headers, data)
+
+        if not (result := response.get('json')):
+            return
+
+        return result['data'][0]['embedding']
 
 
 def main():
     openai = OpenAIChat()
-    print(openai.send_message('Hello, how are you?'))
+    # print(openai.send_message('Hello, how are you?'))
+    vector_data = openai.get_embedding()
+    print(vector_data)
 
 
 
