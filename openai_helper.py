@@ -5,7 +5,8 @@ import os
 
 
 load_dotenv()
-
+openai_api_key = os.getenv('OPENAI_API_KEY')
+print( "this is API key ",openai_api_key)
 
 class OpenAIChat:
     def __init__(
