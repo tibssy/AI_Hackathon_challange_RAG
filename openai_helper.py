@@ -3,6 +3,8 @@ import json
 from dotenv import load_dotenv
 import os
 import chromadb
+import tiktoken
+
 
 load_dotenv()
 
@@ -13,6 +15,7 @@ class OpenAIChat:
             openai_model: str = 'gpt-3.5-turbo',
             embedding_model: str = 'text-embedding-3-small',
             response_keys: tuple = ('text', 'reference_url', 'image_url'),
+            max_tokens: int = 512
     ):
         self.openai_api_key = openai_api_key or os.getenv('OPENAI_API_KEY')
         self.openai_model = openai_model
@@ -25,7 +28,7 @@ class OpenAIChat:
                 'content': f'You are a helpful assistant designed to output JSON. Use these keys only if related: {", ".join(response_keys)}'
             }
         ]
-
+        self.max_tokens = max_tokens
         self.chroma_client = chromadb.Client()
         self.collection = self.chroma_client.get_or_create_collection(name="embeddings_collection")
 
@@ -91,6 +94,30 @@ class OpenAIChat:
         else:
             return {'text': 'No response from OpenAI API'}
 
+    def chunk_text(self, text):
+        encoding = tiktoken.get_encoding("cl100k_base")
+        tokens = encoding.encode(text)
+
+        # Split tokens into chunks
+        chunks = [tokens[i:i + self.max_tokens] for i in range(0, len(tokens), self.max_tokens)]
+        chunked_texts = [encoding.decode(chunk) for chunk in chunks]
+        return chunked_texts
+
+    def create_embeddings_for_long_text(self, text):
+        chunked_texts = self.chunk_text(text)
+        embeddings = []
+        for chunk in chunked_texts:
+            embedding = self.create_embeddings(chunk)
+            if embedding:
+                embeddings.append(embedding)
+
+        # Average the embeddings if multiple chunks
+        if embeddings:
+            averaged_embedding = [sum(x) / len(embeddings) for x in zip(*embeddings)]
+            return averaged_embedding
+        else:
+            return []
+
     def create_embeddings(self, text) -> list:
         endpoint = 'v1/embeddings'
         headers = {
@@ -105,24 +132,27 @@ class OpenAIChat:
 
         response = self._post_request(endpoint, headers, data)
 
-        if not (res := response.get('json')):
+        if not (res := response.get('json')) or 'data' not in res or not res['data']:
             return []
 
         embedding = res['data'][0]['embedding']
         return embedding
 
     def store_embedding(self, text: str, text_id: str, metadata: dict = None):
-        embedding = self.create_embeddings(text)
+        embedding = self.create_embeddings_for_long_text(text)
         if not embedding:
+            print(f"Failed to generate embedding for text_id {text_id}")
             return
 
         self.collection.add(
             embeddings=[embedding],
             ids=[text_id],
             metadatas=[metadata] if metadata else [{}],
-            documents=[text]  # Store the actual text as the document
+            documents=[text]
         )
         print(f"Embedding for text_id {text_id} stored successfully.")
+
+        return embedding
 
 
 def main():
