@@ -1,11 +1,37 @@
 import streamlit as st
 from openai_helper import OpenAIChat
+import pdfplumber
+import uuid
+
+
+def pdf_to_text(pdf_document):
+    doc_id = pdf_document.file_id
+    text = ''
+
+    with pdfplumber.open(pdf_document) as pdf:
+        for page in pdf.pages:
+            text += page.extract_text()
+
+    return {'id': doc_id, 'text': text}
+
+
+def pdf_to_vectordb(pdf_document):
+    pdf = pdf_to_text(pdf_document)
+    text_id = pdf.get('id', uuid.uuid4())
+    text = pdf.get('text', '')
+    metadata = {"source": "example_source"}
+    st.session_state.chat.store_embedding(text, text_id, metadata)
+
+
+def add_pdf(pdf_document):
+    pdf = pdf_to_text(pdf_document)
+    text_id = pdf.get('id', uuid.uuid4())
+    text = pdf.get('text', '')
+    metadata = {"source": "example_source"}
+    st.session_state.chat.store_embedding(text, text_id, metadata)
 
 
 st.title("💬 Chatbot")
-
-
-
 
 if 'chat' not in st.session_state:
     st.session_state.chat = OpenAIChat(openai_model='gpt-4o-mini')
@@ -13,7 +39,7 @@ if 'chat' not in st.session_state:
 
 uploaded_file = st.file_uploader("Choose a document to upload")
 if uploaded_file is not None:
-    print(type(uploaded_file))
+    add_pdf(uploaded_file)
 
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
