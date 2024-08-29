@@ -5,28 +5,18 @@ import uuid
 
 
 def pdf_to_text(pdf_document):
-    doc_id = pdf_document.file_id
     text = ''
 
     with pdfplumber.open(pdf_document) as pdf:
         for page in pdf.pages:
             text += page.extract_text()
 
-    return {'id': doc_id, 'text': text}
-
-
-def pdf_to_vectordb(pdf_document):
-    pdf = pdf_to_text(pdf_document)
-    text_id = pdf.get('id', uuid.uuid4())
-    text = pdf.get('text', '')
-    metadata = {"source": "example_source"}
-    st.session_state.chat.store_embedding(text, text_id, metadata)
+    return text
 
 
 def add_pdf(pdf_document):
-    pdf = pdf_to_text(pdf_document)
-    text_id = pdf.get('id', uuid.uuid4())
-    text = pdf.get('text', '')
+    text = pdf_to_text(pdf_document)
+    text_id = f'{uuid.uuid4()}'
     metadata = {"source": "example_source"}
     st.session_state.chat.store_embedding(text, text_id, metadata)
 
