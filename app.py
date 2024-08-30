@@ -35,15 +35,6 @@ def load_pre_validated_pdf(path):
     st.session_state.validated_pdf_text = text
     st.session_state.validated_pdf_embedding = st.session_state.chat.store_embedding(text, str(text_id), metadata)
 
-
-# def compare_uploaded_pdf_with_context(uploaded_pdf):
-#     uploaded_pdf_embedding = st.session_state.uploaded_pdf_embedding
-#     validated_pdf_embedding = st.session_state.validated_pdf_embedding
-#
-#     # Note that sklearn expects 2D arrays
-#     cosine_sim = cosine_similarity([validated_pdf_embedding], [uploaded_pdf_embedding])
-#     return cosine_sim[0][0] * 100
-
 def compare_uploaded_pdf_with_context(uploaded_pdf):
     uploaded_pdf_embedding = st.session_state.uploaded_pdf_embedding
     validated_pdf_embedding = st.session_state.validated_pdf_embedding
