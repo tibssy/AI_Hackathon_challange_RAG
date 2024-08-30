@@ -62,6 +62,7 @@ class OpenAIChat:
 
         if similar_texts:
             context = " ".join([text for text in similar_texts if text])
+            print(context)
             self.add_message('system', f"Previously, you said: {context}")
 
         response = self.get_response()
