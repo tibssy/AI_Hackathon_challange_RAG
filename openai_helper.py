@@ -8,6 +8,8 @@ import tiktoken
 
 load_dotenv()
 
+openai_api_key = os.getenv('OPENAI_API_KEY')
+
 class OpenAIChat:
     def __init__(
             self,
