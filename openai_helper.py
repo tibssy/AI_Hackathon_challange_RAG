@@ -5,6 +5,8 @@ import os
 import chromadb
 import tiktoken
 
+import pdfplumber
+
 
 load_dotenv()
 
@@ -31,8 +33,10 @@ class OpenAIChat:
             }
         ]
         self.max_tokens = max_tokens
-        self.chroma_client = chromadb.Client()
-        self.collection = self.chroma_client.get_or_create_collection(name="embeddings_collection")
+        self.chroma_client_temporary = chromadb.Client()
+        self.chroma_client_persistent = chromadb.PersistentClient()
+        self.collection_temporary = self.chroma_client_temporary.get_or_create_collection(name="embeddings_collection")
+        self.collection_persistent = self.chroma_client_persistent.get_or_create_collection(name="embeddings_collection")
 
     def _post_request(self, endpoint: str, headers: dict, data: dict) -> dict:
         try:
@@ -52,7 +56,7 @@ class OpenAIChat:
 
         self.add_message('user', message)
 
-        results = self.collection.query(
+        results = self.collection_persistent.query(
             query_embeddings=[embedding],
             n_results=3
         )
@@ -64,7 +68,6 @@ class OpenAIChat:
 
         if similar_texts:
             context = " ".join([text for text in similar_texts if text])
-            print(context)
             self.add_message('system', f"Previously, you said: {context}")
 
         response = self.get_response()
@@ -141,13 +144,29 @@ class OpenAIChat:
         embedding = res['data'][0]['embedding']
         return embedding
 
-    def store_embedding(self, text: str, text_id: str, metadata: dict = None):
+    def store_embedding_temporary(self, text: str, text_id: str, metadata: dict = None):
         embedding = self.create_embeddings_for_long_text(text)
         if not embedding:
             print(f"Failed to generate embedding for text_id {text_id}")
             return
 
-        self.collection.add(
+        self.collection_temporary.add(
+            embeddings=[embedding],
+            ids=[text_id],
+            metadatas=[metadata] if metadata else [{}],
+            documents=[text]
+        )
+        print(f"Embedding for text_id {text_id} stored successfully.")
+
+        return embedding
+
+    def store_embedding_persistent(self, text: str, text_id: str, metadata: dict = None):
+        embedding = self.create_embeddings_for_long_text(text)
+        if not embedding:
+            print(f"Failed to generate embedding for text_id {text_id}")
+            return
+
+        self.collection_persistent.add(
             embeddings=[embedding],
             ids=[text_id],
             metadatas=[metadata] if metadata else [{}],
@@ -158,10 +177,29 @@ class OpenAIChat:
         return embedding
 
 
+
+def pdf_to_text(pdf_document):
+    doc_id = 'validated-document'
+    text = ''
+
+    with pdfplumber.open(pdf_document) as pdf:
+        for page in pdf.pages:
+            text += page.extract_text()
+
+    return {'id': doc_id, 'text': text}
+
+
 def main():
     openai = OpenAIChat(openai_model='gpt-4o-mini')
-    response = openai.send_message("Hello")
-    print(response['text'])
+
+    validated_pdf = pdf_to_text('merged_files.pdf')
+    openai.store_embedding_persistent(validated_pdf['text'], str(validated_pdf['id']), {'source': 'pre_validated_pdf'})
+
+    result = openai.collection_persistent.get(ids=['validated-document'], include=['embeddings', 'documents'])
+    print(result)
+
+    # response = openai.send_message("What is your context?")
+    # print(response['text'])
 
 
 if __name__ == '__main__':

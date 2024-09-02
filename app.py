@@ -6,7 +6,6 @@ import uuid
 import numpy as np
 
 
-
 def pdf_to_text(pdf_document):
     doc_id = uuid.uuid4()
     text = ''
@@ -24,16 +23,19 @@ def pdf_to_vectordb(pdf_document):
     text = pdf['text']
     metadata = {'source': 'user_uploaded_pdf'}
     st.session_state.uploaded_pdf_text = text
-    st.session_state.uploaded_pdf_embedding = st.session_state.chat.store_embedding(text, str(text_id), metadata)
+    st.session_state.uploaded_pdf_embedding = st.session_state.chat.store_embedding_temporary(text, str(text_id), metadata)
 
 
-def load_pre_validated_pdf(path):
-    validated_pdf = pdf_to_text(path)
-    text_id = validated_pdf['id']
-    text = validated_pdf['text']
-    metadata = {'source': 'pre_validated_pdf'}
-    st.session_state.validated_pdf_text = text
-    st.session_state.validated_pdf_embedding = st.session_state.chat.store_embedding(text, str(text_id), metadata)
+def load_pre_validated_pdf():
+    validated_document = st.session_state.chat.collection_persistent.get(ids=['validated-document'], include=['embeddings', 'documents'])
+    st.session_state.validated_pdf_text = validated_document['documents'][0]
+    st.session_state.validated_pdf_embedding = validated_document['embeddings'][0]
+
+
+def write_message(role, text):
+    st.session_state.messages.append({"role": role, "content": text})
+    st.chat_message(role).write(text)
+
 
 def compare_uploaded_pdf_with_context(uploaded_pdf):
     uploaded_pdf_embedding = st.session_state.uploaded_pdf_embedding
@@ -92,7 +94,7 @@ st.title('\U0001F3E1 Chat with OpenAI RAG AI solution using PDF')
 if 'chat' not in st.session_state:
     st.session_state.chat = OpenAIChat(openai_model='gpt-4o-mini')
     st.session_state.messages = [{'role': 'assistant', 'content': 'How can I help you?'}]
-    load_pre_validated_pdf('merged_files.pdf')
+    load_pre_validated_pdf()
 
 uploaded_file = st.file_uploader("Choose a document to upload")
 if uploaded_file is not None:
@@ -107,18 +109,16 @@ if uploaded_file is not None:
 
         st.write("Could not calculate similarity. Please check the uploaded document and try again.")
 
-
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
 
 if prompt := st.chat_input():
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    st.chat_message("user").write(prompt)
+    write_message('user', prompt)
 
     response = st.session_state.chat.send_message(prompt)
     message = response.get('text')
 
-    st.session_state.messages.append({"role": "assistant", "content": message})
-    st.chat_message("assistant").write(message)
+    write_message('assistant', message)
+
 
 
